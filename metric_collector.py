@@ -66,12 +66,10 @@ def collect_metrics() -> dict:
     return metrics
 
 
-def fill_df_with_dates_for_closed_issue(df: pd.DataFrame, status: str, date: str):
+def fill_df_with_last_status_till_today(df: pd.DataFrame, status: str, date: str):
     # date - start the date to fill till today
     today = datetime.now().strftime("%Y-%m-%d")
-    logger.debug(
-        f"Filling dataframe with dates for closed issue from {date} to {today}"
-    )
+    logger.debug(f"Filling dataframe with last status {status} from {date} to {today}")
     for date in pd.date_range(date, today):
         date = date.strftime("%Y-%m-%d")
         # add to the dataframe
@@ -123,7 +121,7 @@ def process_metrics(metrics: dict):
         last_status, last_date = transitions[-1]
 
         logger.info(f"Update data with last status {last_status} from {last_date}")
-        df = fill_df_with_dates_for_closed_issue(df, last_status, last_date)
+        df = fill_df_with_last_status_till_today(df, last_status, last_date)
 
     # sort df by index
     df = df.sort_index()
@@ -131,14 +129,18 @@ def process_metrics(metrics: dict):
     # it is a initial date when issue has been created
 
 
-def fill_closed_dates_from_previous_dates(df: pd.DataFrame):
+def fill_nan_with_last_amounts_from_previous_dates(df: pd.DataFrame):
     # fill the closed dates from the previous dates
-    closed_amount = 0
-    for date in df.index:
-        if not pd.isna(df.loc[date, "Closed"]):
-            closed_amount = df.loc[date, "Closed"]
-        else:
-            df.loc[date, "Closed"] = closed_amount
+
+    statuses = df.columns
+
+    for status in statuses:
+        last_amount = 0
+        for date in df.index:
+            if not pd.isna(df.loc[date, status]):
+                last_amount = df.loc[date, status]
+            else:
+                df.loc[date, status] = last_amount
 
     return df
 
@@ -146,6 +148,6 @@ def fill_closed_dates_from_previous_dates(df: pd.DataFrame):
 if __name__ == "__main__":
     metrics = collect_metrics()
     df = process_metrics(metrics)
-    df = fill_closed_dates_from_previous_dates(df)
+    df = fill_nan_with_last_amounts_from_previous_dates(df)
     # save to csv
     df.to_csv("data/metrics.csv")

@@ -4,13 +4,13 @@ import pandas as pd
 from metric_collector import (
     collect_metrics,
     process_metrics,
-    fill_closed_dates_from_previous_dates,
+    fill_nan_with_last_amounts_from_previous_dates,
 )
 
 
 metrics = collect_metrics()
 df = process_metrics(metrics)
-df = fill_closed_dates_from_previous_dates(df)
+df = fill_nan_with_last_amounts_from_previous_dates(df)
 # Fill NaN values with 0
 df = df.fillna(0)
 
