@@ -1,5 +1,4 @@
 from utilis.jira_helper import JiraConfig, JiraRequestor
-import json
 import logging
 import pandas as pd
 from datetime import datetime
@@ -34,6 +33,7 @@ def collect_metrics() -> dict:
     for work_item in work_items["issues"]:
         # logger.info(f"Processing issues {work_item}")
         key = work_item["key"]
+        logger.info(f"Processing issue {key}")
         # summary = work_item["fields"]["summary"]
 
         # update the metrics with the initial status and the created time
@@ -66,19 +66,43 @@ def collect_metrics() -> dict:
     return metrics
 
 
-def fill_df_with_last_status_till_today(df: pd.DataFrame, status: str, date: str):
+def update_last_status(df: pd.DataFrame, status: str, start_date: str):
+    """'
+    Update the last status for the given date.
+    It will increment the amount of the issues count by 1 from start date to today for the given status.
+    """
+
     # date - start the date to fill till today
     today = datetime.now().strftime("%Y-%m-%d")
-    logger.debug(f"Filling dataframe with last status {status} from {date} to {today}")
-    for date in pd.date_range(date, today):
+    # last date plus one day
+    updated_start_date = (pd.to_datetime(start_date) + pd.Timedelta(days=1)).strftime(
+        "%Y-%m-%d"
+    )
+
+    logger.debug(
+        f"Filling dataframe with last status {status} from {updated_start_date} to {today}"
+    )
+
+    for date in pd.date_range(updated_start_date, today):
         date = date.strftime("%Y-%m-%d")
-        # add to the dataframe
-        if date not in df.index:
-            df.loc[date, status] = 1
-        elif status in df.columns:
-            df.loc[date, status] = df.loc[date, status] + 1
-        else:
-            df.loc[date, status] = 1
+
+        df = increment(df, date, status)
+
+    return df
+
+
+def increment(df: pd.DataFrame, date: str, status: str):
+    """
+    Increment the amount for the given date and status.
+    It will increment the amount of the issues count by 1 on the given date and status.
+    """
+
+    if date not in df.index:
+        df.loc[date, status] = 1
+    elif status in df.columns:
+        df.loc[date, status] = df.loc[date, status] + 1
+    else:
+        df.loc[date, status] = 1
     return df
 
 
@@ -107,21 +131,14 @@ def process_metrics(metrics: dict):
             if date in dates_to_statuses_dict:
                 status = dates_to_statuses_dict[date]
 
-            # logger.info(f"Status for {date}: {status}")
+            df = increment(df, date, status)
 
-            # add to the dataframe
-            if date not in df.index:
-                df.loc[date, status] = 1
-            elif status in df.columns:
-                df.loc[date, status] = df.loc[date, status] + 1
-            else:
-                df.loc[date, status] = 1
             # print(df)
 
         last_status, last_date = transitions[-1]
 
         logger.info(f"Update data with last status {last_status} from {last_date}")
-        df = fill_df_with_last_status_till_today(df, last_status, last_date)
+        df = update_last_status(df, last_status, last_date)
 
     # sort df by index
     df = df.sort_index()
