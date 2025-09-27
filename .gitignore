@@ -1,3 +1,10 @@
+# My settings for ignored files
+# data folder
+data/
+examples/
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
