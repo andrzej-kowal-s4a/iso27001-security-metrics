@@ -4,7 +4,8 @@ from metric_collector import (
 )
 from metric_collector import MetricsCollector
 
-jql = 'project = SECURITY AND issuetype="Security Incident"'
+# jql = 'project = SECURITY AND issuetype="Security Incident"'
+jql = 'project not in (SERVICE) AND ( labels in ("security", "incident", "breach") OR summary ~ "breach" OR summary ~ "incident" OR description ~ "breach" OR description ~ "incident" OR description ~ "breach" ) and status != CLOSED ORDER BY priority DESC'
 
 
 def main():
