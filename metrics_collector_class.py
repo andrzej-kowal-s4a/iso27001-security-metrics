@@ -18,13 +18,28 @@ class MetricsCollector:
         self.requestor = JiraRequestor(JiraConfig.from_os_environment_variables())
         self.supported_statuses = supported_statuses
 
+    def _extract_statuses(self, work_items: dict) -> list:
+        statuses = [
+            work_item["fields"]["status"]["name"] for work_item in work_items["issues"]
+        ]
+        # return the unique statuses
+        return list(set(statuses))
+
     def collect_metrics(self, jql: str) -> dict:
         metrics = {}
 
         logger.info(f"Collecting metrics for JQL: {jql}")
-        work_items = self.requestor.request(jql, fields=["key", "summary", "created"])
-
+        work_items = self.requestor.request(
+            jql, fields=["key", "summary", "created", "status"]
+        )
         logger.info(f"Found {len(work_items['issues'])} issues")
+
+        # get the status of the work items
+        unique_statuses = self._extract_statuses(work_items)
+        logger.info(f"Found {len(unique_statuses)} unique statuses: {unique_statuses}")
+
+        # add unique statuses to the supported statuses
+        self.supported_statuses.extend(unique_statuses)
 
         for work_item in work_items["issues"]:
             # logger.info(f"Processing issues {work_item}")
