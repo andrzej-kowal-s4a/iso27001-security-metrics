@@ -6,7 +6,7 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-jql = 'project = SECURITY AND issuetype="Security Incident"'
+# jql = 'project = SECURITY AND issuetype="Security Incident"'
 # jql = 'project = SECURITY AND status = Closed AND issuetype="Security Incident"'
 jira_config = JiraConfig.from_os_environment_variables()
 requestor = JiraRequestor(jira_config)
@@ -22,48 +22,55 @@ supported_statuses = [
 ]
 
 
-def collect_metrics() -> dict:
-    metrics = {}
+class MetricsCollector:
+    def __init__(self):
+        self.requestor = JiraRequestor(JiraConfig.from_os_environment_variables())
+        self.supported_statuses = supported_statuses
 
-    logger.info(f"Collecting metrics for JQL: {jql}")
-    work_items = requestor.request(jql, fields=["key", "summary", "created"])
+    def collect_metrics(self, jql: str) -> dict:
+        metrics = {}
 
-    logger.info(f"Found {len(work_items['issues'])} issues")
+        logger.info(f"Collecting metrics for JQL: {jql}")
+        work_items = requestor.request(jql, fields=["key", "summary", "created"])
 
-    for work_item in work_items["issues"]:
-        # logger.info(f"Processing issues {work_item}")
-        key = work_item["key"]
-        logger.info(f"Processing issue {key}")
-        # summary = work_item["fields"]["summary"]
+        logger.info(f"Found {len(work_items['issues'])} issues")
 
-        # update the metrics with the initial status and the created time
-        work_item_created_time = work_item["fields"]["created"]
-        metrics[key] = {}
-        metrics[key]["Initial"] = work_item_created_time.split("T")[0]  # only the date
+        for work_item in work_items["issues"]:
+            # logger.info(f"Processing issues {work_item}")
+            key = work_item["key"]
+            logger.info(f"Processing issue {key}")
+            # summary = work_item["fields"]["summary"]
 
-        item_changelog = requestor.changelog(key)
+            # update the metrics with the initial status and the created time
+            work_item_created_time = work_item["fields"]["created"]
+            metrics[key] = {}
+            metrics[key]["Initial"] = work_item_created_time.split("T")[
+                0
+            ]  # only the date
 
-        for changelog_item in item_changelog["values"]:
-            created_time = changelog_item["created"]
-            # each change at specific change can have multiple items
-            for item in changelog_item["items"]:
-                # TODO remove from string when the code start working correctly
-                fromString, toString = item["fromString"], item["toString"]
+            item_changelog = requestor.changelog(key)
 
-                if toString in supported_statuses:
-                    logger.debug(f"{created_time}, {fromString} -> {toString}")
+            for changelog_item in item_changelog["values"]:
+                created_time = changelog_item["created"]
+                # each change at specific change can have multiple items
+                for item in changelog_item["items"]:
+                    # TODO remove from string when the code start working correctly
+                    fromString, toString = item["fromString"], item["toString"]
 
-                    # take only the date from the created_time
-                    created_time = created_time.split("T")[0]
+                    if toString in supported_statuses:
+                        logger.debug(f"{created_time}, {fromString} -> {toString}")
 
-                    metrics[key][toString] = created_time
+                        # take only the date from the created_time
+                        created_time = created_time.split("T")[0]
 
-        # print the metrics for the key
-        logger.debug(f"Metrics for {key}: {metrics[key]}")
-        # save to file json
-        # with open(f"data/{key}.json", "w") as f:
-        #     json.dump(metrics[key], f)
-    return metrics
+                        metrics[key][toString] = created_time
+
+            # print the metrics for the key
+            logger.debug(f"Metrics for {key}: {metrics[key]}")
+            # save to file json
+            # with open(f"data/{key}.json", "w") as f:
+            #     json.dump(metrics[key], f)
+        return metrics
 
 
 def update_last_status(df: pd.DataFrame, status: str, start_date: str):
@@ -140,13 +147,14 @@ def process_metrics(metrics: dict):
         logger.info(f"Update data with last status {last_status} from {last_date}")
         df = update_last_status(df, last_status, last_date)
 
-    # sort df by index
-    df = df.sort_index()
-    return df
+    return df.sort_index()
     # it is a initial date when issue has been created
 
 
-def fill_nan_with_last_amounts_from_previous_dates(df: pd.DataFrame):
+def fill_nan(df: pd.DataFrame):
+    """
+    Fill the NaN values with the last amount from the previous dates.
+    """
     # fill the closed dates from the previous dates
 
     statuses = df.columns
@@ -162,9 +170,19 @@ def fill_nan_with_last_amounts_from_previous_dates(df: pd.DataFrame):
     return df
 
 
-if __name__ == "__main__":
-    metrics = collect_metrics()
+def create_df(metrics: dict) -> pd.DataFrame:
     df = process_metrics(metrics)
-    df = fill_nan_with_last_amounts_from_previous_dates(df)
+    df = fill_nan(df)
+    # df = df.fillna(0)
+    return df
+
+
+if __name__ == "__main__":
+    jql = "project = SECURITY AND status = Closed AND issuetype='Security Incident'"
+
+    collector = MetricsCollector()
+    metrics = collector.collect_metrics(jql)
+
+    df = create_df(metrics)
     # save to csv
     df.to_csv("data/metrics.csv")
