@@ -1,4 +1,4 @@
-from dash import Dash, dcc, html, Input, Output
+from dash import Dash
 import plotly.express as px
 import pandas as pd
 from metric_collector import (
