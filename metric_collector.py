@@ -63,7 +63,7 @@ def process_metrics(metrics: dict):
 
         issue_start = transitions[0][1]
         issue_end = transitions[-1][1]
-        logger.info(f"I am processing the time frame {issue_start} to {issue_end}")
+        logger.debug(f"I am processing the time frame {issue_start} to {issue_end}")
 
         # create loop over the dates from issue_start to issue_end
         status = None
@@ -81,7 +81,7 @@ def process_metrics(metrics: dict):
 
         last_status, last_date = transitions[-1]
 
-        logger.info(f"Update data with last status {last_status} from {last_date}")
+        logger.debug(f"Update data with last status {last_status} from {last_date}")
         df = update_last_status(df, last_status, last_date)
 
     return df.sort_index()

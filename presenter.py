@@ -1,4 +1,5 @@
 import plotly.express as px
+from datetime import datetime
 from metric_collector import (
     create_df,
 )
@@ -23,6 +24,11 @@ def main():
 
     fig = px.area(df_melted, x="Date", y="Count", color="Status")
     fig.show()
+
+    # how to save fig to file
+    # get today's date
+    today = datetime.now().strftime("%Y-%m-%d")
+    fig.write_html(f"output/fig_{today}.html")
 
 
 if __name__ == "__main__":
