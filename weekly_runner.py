@@ -13,22 +13,25 @@ metrics = [
     (
         "SECURITY-280-Incidents-Major-plus",
         'project = security and issuetype = "Security Incident" and priority >= Major and status != Closed',
+        False,
     ),
     (
         "SECURITY-280-Incidents",
         'project = security and issuetype = "Security Incident" and status != Closed',
+        False,
     ),
     (
         "SECURITY-280-Security-Issues",
         'project not in (SERVICE) AND ( labels in ("security", "incident", "breach") OR summary ~ "breach" OR summary ~ "incident" OR description ~ "breach" OR description ~ "incident" OR description ~ "breach" ) and status != CLOSED ORDER BY priority DESC',
+        True,
     ),
 ]
 
 
-def generate_report(name: str, jql: str):
+def generate_report(name: str, jql: str, reduce_statuses: bool):
     today = datetime.now().strftime("%Y-%m-%d")
     collector = MetricsCollector()
-    metrics = collector.collect_metrics(jql)
+    metrics = collector.collect_metrics(jql, reduce_statuses)
     df = create_df(metrics)
 
     df.to_csv(f"output/{name}_{today}.csv")
@@ -95,4 +98,4 @@ def generate_report(name: str, jql: str):
 if __name__ == "__main__":
     for metric in metrics:
         logger.info(f"Generating report for {metric[0]}")
-        generate_report(metric[0], metric[1])
+        generate_report(metric[0], metric[1], metric[2])
