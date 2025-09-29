@@ -67,10 +67,7 @@ def get_reduced_status(status_name: str) -> str:
              Returns "Unknown" if status is not found in any category
     """
     for reduced_status, status_list in REDUCED_STATUSES.items():
-        if isinstance(status_list, tuple):
-            if status_name in status_list:
-                return reduced_status
-        elif status_name == status_list:
+        if status_name in status_list:
             return reduced_status
 
     # Return "Unknown" for any status not found in the mapping
