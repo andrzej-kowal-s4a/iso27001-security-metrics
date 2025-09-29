@@ -12,6 +12,70 @@ supported_statuses = [
     "Closed",
 ]
 
+REDUCED_STATUSES = {
+    "Initial": (
+        "Initial",
+        "INITIAL",
+        "Triage",
+        "Business need assessment",
+        "Identify",
+    ),
+    "In Progress": (
+        "In Progress",
+        "Planning",
+        "Response implementation",
+        "Control",
+        "Analysis and Verification",
+        "Work on resolution",
+        "Contain/mitigate",
+        "Eradicate/remediate",
+        "Response planing",
+        "Training in Progress",
+        "Ready for development",
+        "Major Upgrade",
+        "Verification",
+        "Audit",
+    ),
+    "Waiting": (
+        "Waiting 4 Product",
+        "Waiting 4 Order",
+        "Waiting 4 Deployment",
+        "Waiting for customer",
+        "Waiting 4 Delivery",
+        "Waiting 4 Fix",
+        "Waiting for Release",
+    ),
+    "Blocked": (
+        "Blocked",
+        "On Hold",
+        "Provide more information",
+        "Hibernated",
+    ),
+    "Closed": ("Closed", "Compliant", "TEST", "Reopened"),
+}
+
+
+def get_reduced_status(status_name: str) -> str:
+    """
+    Return the reduced status category for a given status name.
+
+    Args:
+        status_name (str): The original status name
+
+    Returns:
+        str: The reduced status category ("Initial", "In Progress", "Blocked", or "Closed")
+             Returns "Unknown" if status is not found in any category
+    """
+    for reduced_status, status_list in REDUCED_STATUSES.items():
+        if isinstance(status_list, tuple):
+            if status_name in status_list:
+                return reduced_status
+        elif status_name == status_list:
+            return reduced_status
+
+    # Return "Unknown" for any status not found in the mapping
+    return "Unknown"
+
 
 class MetricsCollector:
     def __init__(self):
@@ -25,7 +89,7 @@ class MetricsCollector:
         # return the unique statuses
         return list(set(statuses))
 
-    def collect_metrics(self, jql: str) -> dict:
+    def collect_metrics(self, jql: str, reduce_statuses: bool = True) -> dict:
         metrics = {}
 
         logger.info(f"Collecting metrics for JQL: {jql}")
@@ -61,15 +125,22 @@ class MetricsCollector:
                 # each change at specific change can have multiple items
                 for item in changelog_item["items"]:
                     # TODO remove from string when the code start working correctly
-                    fromString, toString = item["fromString"], item["toString"]
+                    fromStatus, toStatus = item["fromString"], item["toString"]
 
-                    if toString in supported_statuses:
-                        logger.debug(f"{created_time}, {fromString} -> {toString}")
+                    if reduce_statuses:
+                        reduced_toString = get_reduced_status(toStatus)
+                    else:
+                        reduced_toString = toStatus
+
+                    if toStatus in supported_statuses:
+                        logger.debug(
+                            f"{created_time}, {fromStatus} -> {toStatus}. Used reduced status: {reduced_toString}"
+                        )
 
                         # take only the date from the created_time
                         created_time = created_time.split("T")[0]
 
-                        metrics[key][toString] = created_time
+                        metrics[key][reduced_toString] = created_time
 
             # print the metrics for the key
             logger.debug(f"Metrics for {key}: {metrics[key]}")
